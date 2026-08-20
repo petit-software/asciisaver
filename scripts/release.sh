@@ -5,15 +5,22 @@
 # Usage:
 #   ./scripts/release.sh v1.0.0
 #
-# Notarization credentials — either a stored notarytool keychain profile:
-#   NOTARY_PROFILE=ASCIISaver ./scripts/release.sh v1.0.0
-# (create once with: xcrun notarytool store-credentials ASCIISaver \
-#      --key ~/.appstoreconnect/private_keys/AuthKey_XXXX.p8 \
-#      --key-id XXXX --issuer <issuer-uuid>)
+# Notarization credentials, in the order this script tries them:
 #
-# ...or the App Store Connect API key directly:
-#   NOTARY_KEY=~/.appstoreconnect/private_keys/AuthKey_XXXX.p8 \
-#   NOTARY_KEY_ID=XXXX NOTARY_ISSUER=<issuer-uuid> ./scripts/release.sh v1.0.0
+#   1. App Store Connect API key (preferred, no app-specific password):
+#        export NOTARY_API_KEY="$HOME/.appstoreconnect/private_keys/AuthKey_<id>.p8"
+#        export NOTARY_API_KEY_ID="<key-id>"
+#        export NOTARY_API_ISSUER="<issuer-uuid>"
+#      These are the same names the other projects on this machine use.
+#
+#   2. A stored notarytool keychain profile:
+#        NOTARY_PROFILE=ASCIISaver ./scripts/release.sh v1.0.0
+#      Create once with:
+#        xcrun notarytool store-credentials "ASCIISaver" \
+#          --apple-id "bartosz.bak@me.com" --team-id "TJ3ALYQV5G" \
+#          --keychain "$HOME/Library/Keychains/login.keychain-db"
+#
+#   3. NOTARY_KEY + NOTARY_KEY_ID + NOTARY_ISSUER, passed straight through.
 #
 set -euo pipefail
 
@@ -43,14 +50,26 @@ fi
 echo "==> Verifying signature"
 codesign --verify --strict --deep --verbose=2 "$BUILT"
 
-if ! codesign -dvv "$BUILT" 2>&1 | grep -q "Authority=Developer ID Application"; then
-	echo "Not signed with a Developer ID; notarization would be rejected." >&2
-	exit 1
-fi
-if ! codesign -d --verbose=2 "$BUILT" 2>&1 | grep -q "flags=.*runtime"; then
-	echo "Hardened runtime is not enabled; notarization would be rejected." >&2
-	exit 1
-fi
+# Captured to a variable rather than piped into grep: `grep -q` exits at the
+# first match, codesign takes SIGPIPE, and `pipefail` would report the whole
+# pipeline as failed even though the pattern matched.
+SIGN_INFO="$(codesign -dvv "$BUILT" 2>&1)"
+
+case "$SIGN_INFO" in
+	*"Authority=Developer ID Application"*) ;;
+	*)
+		echo "Not signed with a Developer ID; notarization would be rejected." >&2
+		exit 1
+		;;
+esac
+
+case "$SIGN_INFO" in
+	*runtime*) ;;
+	*)
+		echo "Hardened runtime is not enabled; notarization would be rejected." >&2
+		exit 1
+		;;
+esac
 
 # --- Package ----------------------------------------------------------------
 echo "==> Packaging $ZIP"
@@ -61,8 +80,25 @@ ditto -c -k --keepParent "$BUILT" "$ZIP"
 
 # --- Notarize ---------------------------------------------------------------
 echo "==> Notarizing (this takes a few minutes)"
-if [ -n "${NOTARY_PROFILE:-}" ]; then
-	xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+
+# Prefer the App Store Connect API key; fall back to a keychain profile.
+# The profile path is pinned to the login keychain on purpose: without an
+# explicit --keychain, notarytool intermittently reports "No Keychain password
+# item found for profile" even when the profile exists.
+NOTARY_KEYCHAIN="${NOTARY_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
+
+if [ -n "${NOTARY_API_KEY:-}" ] && [ -n "${NOTARY_API_KEY_ID:-}" ] && [ -n "${NOTARY_API_ISSUER:-}" ]; then
+	# Same env var names the other projects on this machine use.
+	xcrun notarytool submit "$ZIP" \
+		--key "$NOTARY_API_KEY" \
+		--key-id "$NOTARY_API_KEY_ID" \
+		--issuer "$NOTARY_API_ISSUER" \
+		--wait
+elif [ -n "${NOTARY_PROFILE:-}" ]; then
+	xcrun notarytool submit "$ZIP" \
+		--keychain-profile "$NOTARY_PROFILE" \
+		--keychain "$NOTARY_KEYCHAIN" \
+		--wait
 elif [ -n "${NOTARY_KEY:-}" ] && [ -n "${NOTARY_KEY_ID:-}" ] && [ -n "${NOTARY_ISSUER:-}" ]; then
 	xcrun notarytool submit "$ZIP" \
 		--key "$NOTARY_KEY" \
@@ -70,8 +106,10 @@ elif [ -n "${NOTARY_KEY:-}" ] && [ -n "${NOTARY_KEY_ID:-}" ] && [ -n "${NOTARY_I
 		--issuer "$NOTARY_ISSUER" \
 		--wait
 else
-	echo "No notarization credentials. Set NOTARY_PROFILE, or NOTARY_KEY +" >&2
-	echo "NOTARY_KEY_ID + NOTARY_ISSUER. See the header of this script." >&2
+	echo "No notarization credentials. Set one of:" >&2
+	echo "  NOTARY_API_KEY + NOTARY_API_KEY_ID + NOTARY_API_ISSUER  (preferred)" >&2
+	echo "  NOTARY_PROFILE          (a stored notarytool keychain profile)" >&2
+	echo "  NOTARY_KEY + NOTARY_KEY_ID + NOTARY_ISSUER" >&2
 	exit 1
 fi
 
