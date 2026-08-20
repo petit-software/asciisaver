@@ -1,0 +1,36 @@
+name: ASCIISaver
+
+options:
+  bundleIdPrefix: com.bartbak
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+targets:
+  ASCIISaver:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_NAME: ASCIISaver
+        PRODUCT_BUNDLE_IDENTIFIER: com.bartbak.ASCIISaver
+        WRAPPER_EXTENSION: saver
+        INFOPLIST_FILE: Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "5.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SKIP_INSTALL: YES
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks"
+        # Developer ID + hardened runtime, as notarization requires.
+        # Override with CODE_SIGN_IDENTITY="-" for a local ad-hoc build.
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: TJ3ALYQV5G
+        ENABLE_HARDENED_RUNTIME: YES
+        OTHER_CODE_SIGN_FLAGS: "--timestamp"
+    dependencies:
+      - sdk: ScreenSaver.framework
+      - sdk: Cocoa.framework

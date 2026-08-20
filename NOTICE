@@ -1,0 +1,15 @@
+ASCIISaver
+Copyright 2026
+
+This product includes software derived from play.core
+(https://github.com/ertdfgcvb/play.core), Copyright ertdfgcvb,
+licensed under the Apache License, Version 2.0.
+
+Ported to Swift/AppKit:
+  - the play.core runtime (run.js -> Sources/Runner.swift)
+  - modules/drawbox.js -> Sources/DrawBox.swift
+  - programs/basics/time_milliseconds.js -> Sources/Programs/TimeMilliseconds.swift
+
+The "LL Simple Console" typeface used on play.ertdfgcvb.xyz is NOT included:
+it is licensed for use only on ertdfgcvb.xyz and its subdomains. This port
+renders with the macOS system monospaced font instead.

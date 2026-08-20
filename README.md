@@ -6,19 +6,45 @@ by [ertdfgcvb](https://play.ertdfgcvb.xyz), ported from
 
 ![The saver rendering the time_milliseconds pattern](docs/screenshot.png)
 
-## Install
+## Download
+
+Grab `ASCIISaver.saver` from the
+[latest release](https://github.com/petit-software/asciisaver/releases/latest),
+unzip it, and double-click. It's signed with a Developer ID and notarized by
+Apple, so it opens without a Gatekeeper warning.
+
+Then open **System Settings → Screen Saver** and pick *ASCIISaver*.
+
+## Build from source
 
 ```sh
 ./build.sh --install
 ```
 
-Then open **System Settings → Screen Saver** and pick *ASCIISaver*. If it was
-already selected, switch to another saver and back so the host reloads the
-bundle.
+Builds and installs to `~/Library/Screen Savers/`. If the saver was already
+selected, switch to another one and back so the host reloads the bundle.
 
 Requires Xcode and macOS 14+. [xcodegen](https://github.com/yonaskolb/XcodeGen)
 regenerates `ASCIISaver.xcodeproj` from `project.yml` if installed; the checked-in
 project works without it.
+
+The build signs with a Developer ID and the hardened runtime. For a local build
+without a certificate:
+
+```sh
+CODE_SIGN_IDENTITY="-" ./build.sh
+```
+
+### Preview without installing
+
+```sh
+./run.sh            # full screen
+./run.sh --window   # in a 1280x800 window
+```
+
+`run.sh` builds the saver and hosts it in a preview window, loading the bundle
+the same way macOS does (`NSPrincipalClass` → `ScreenSaverView`). Quit with Esc,
+any key, or a click; it auto-quits after five minutes.
 
 ## Options
 
@@ -30,6 +56,10 @@ Click **Options…** in System Settings:
 | Colors | Light | Matches the site (black on white). Dark inverts it |
 | Frame rate | 30 fps | The play.core default |
 | Runtime info overlay | Off | The demo's FPS/frame/time box — a debug readout, so it's off by default |
+
+The sheet credits the original at the bottom, taken from the `[header]` block
+the demo declares in its own source (`@author ertdfgcvb`, `@title Time:
+milliseconds`), with a link to play.ertdfgcvb.xyz.
 
 ## How the port works
 
@@ -94,6 +124,17 @@ backing scale:
   moving the mouse dismisses it.
 - **Info overlay off by default.** It's a debug readout; the wallpaper is the point.
 - The system monospaced font replaces Simple Console, as above.
+
+## Credits
+
+The program, the runtime it runs on, and the playground they come from are all
+the work of **[ertdfgcvb](https://play.ertdfgcvb.xyz)**. This repository is a
+port, not original work — see [play.core](https://github.com/ertdfgcvb/play.core)
+for the real thing, and the
+[live version of this demo](https://play.ertdfgcvb.xyz/#/src/basics/time_milliseconds)
+for what it's modelled on.
+
+The credit also appears at the bottom of the saver's Options sheet.
 
 ## License
 
